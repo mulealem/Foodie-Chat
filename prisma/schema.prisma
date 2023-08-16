@@ -1,0 +1,218 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// datasource db {
+//   provider = "sqlite"
+//   url      = env("DATABASE_URL")
+// }
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id                 String             @id @default(cuid())
+  name               String?
+  email              String?            @unique
+  emailVerified      DateTime?
+  image              String?
+  isCompany          Boolean            @default(false)
+  companyName        String?
+  companyDescription String?
+  companySlogan      String?
+  companyLogoUrl     String?
+  type               String?
+  slug               String?
+  accounts           Account[]
+  sessions           Session[]
+  MenuCategory       MenuCategory[]
+  ProviderMenuItem   ProviderMenuItem[]
+  RecivedMessage     Message[]          @relation(name: "receiver")
+  SentMessage        Message[]          @relation(name: "sender")
+  SenderChat         Chat[]             @relation(name: "senderChat")
+  ReceiverChat       Chat[]             @relation(name: "receiverChat")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// model Provider {
+//   id        String   @id @default(cuid())
+//   name      String   @unique
+//   type      String
+//   slug      String   @unique
+//   accountId String
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   account          Account            @relation(fields: [accountId], references: [id])
+//   ProviderMenuItem ProviderMenuItem[]
+//   MenuCategory     MenuCategory[]
+//   Chat             Chat[]
+// }
+
+model MenuCategory {
+  id         String   @id @default(cuid())
+  name       String
+  providerId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  provider         User               @relation(fields: [providerId], references: [id])
+  ProviderMenuItem ProviderMenuItem[]
+}
+
+model ProviderMenuItem {
+  id             String   @id @default(cuid())
+  name           String
+  description    String
+  price          Float
+  imageURL       String
+  menuCategoryID String
+  providerId     String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  provider        User              @relation(fields: [providerId], references: [id])
+  menuCategory    MenuCategory      @relation(fields: [menuCategoryID], references: [id])
+  OrderItem       OrderItem[]
+  MessageMenuItem MessageMenuItem[]
+}
+
+// model Chat {
+//   id         String   @id @default(cuid())
+//   providerId String
+//   senderId   String
+//   createdAt  DateTime @default(now())
+//   updatedAt  DateTime @updatedAt
+
+//   provider User      @relation(fields: [providerId], references: [id])
+//   Message  Message[]
+//   Order    Order[]
+// }
+
+model MessageType {
+  id           String    @id @default(cuid())
+  name         String
+  abbreviation String    @unique
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  Message      Message[]
+}
+
+model Chat {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  Sender   User?     @relation(name: "senderChat", fields: [senderId], references: [id])
+  Receiver User?     @relation(name: "receiverChat", fields: [receiverId], references: [id])
+  Message  Message[]
+}
+
+model Message {
+  id String @id @default(cuid())
+
+  senderId   String
+  receiverId String
+
+  content String
+  typeId  String
+  chatId  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  MessageMenuItem MessageMenuItem[]
+  MessageType     MessageType       @relation(fields: [typeId], references: [id])
+  Receiver        User?             @relation(name: "receiver", fields: [receiverId], references: [id])
+  Sender          User?             @relation(name: "sender", fields: [senderId], references: [id])
+  Chat            Chat?             @relation(fields: [chatId], references: [id])
+  Order           Order[]
+}
+
+model MessageMenuItem {
+  id                 String   @id @default(cuid())
+  messageId          String
+  providerMenuItemId String
+  remark             String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  Message          Message          @relation(fields: [messageId], references: [id])
+  ProviderMenuItem ProviderMenuItem @relation(fields: [providerMenuItemId], references: [id])
+}
+
+model OrderStatus {
+  id           String   @id @default(cuid())
+  name         String
+  actionName   String?
+  abbreviation String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  Order        Order[]
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  messageId     String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  orderStatusId String
+  message       Message     @relation(fields: [messageId], references: [id])
+  OrderStatus   OrderStatus @relation(fields: [orderStatusId], references: [id])
+  OrderItem     OrderItem[]
+}
+
+model OrderItem {
+  id                 String   @id @default(cuid())
+  orderId            String
+  providerMenuItemId String
+  price              Float
+  quantity           Int
+  remark             String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  Order            Order            @relation(fields: [orderId], references: [id])
+  ProviderMenuItem ProviderMenuItem @relation(fields: [providerMenuItemId], references: [id])
+}
